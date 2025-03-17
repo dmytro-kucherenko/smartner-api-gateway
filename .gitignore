@@ -1,0 +1,15 @@
+# Editor
+.vscode
+
+# Temporary
+tmp
+
+# Build
+bin
+vendor
+.aws-sam
+
+# Environment
+.env
+*.sam.toml
+!example.sam.toml
