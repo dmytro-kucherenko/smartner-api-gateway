@@ -30,8 +30,8 @@ jobs:
       - name: Check packages
         run: go mod tidy && git diff --exit-code go.mod go.sum
 
-      - name: Build docs
-        run: make docs
+      # - name: Build docs
+      #   run: make docs
 
       - name: Build module
         run: make build

@@ -8,7 +8,11 @@ clean:
 
 lint:
 	@go vet ./...
-	@sam validate
+	@sam validate -t cfn/api.cfn.yaml --lint
+	@sam validate -t cfn/db.cfn.yaml --lint
+	@sam validate -t cfn/bastion.cfn.yaml --lint
+	@sam validate -t cfn/authorizer.cfn.yaml --lint
+	@sam validate -t cfn/network.cfn.yaml --lint
 
 pre-commit:
 	@pre-commit autoupdate && pre-commit install
