@@ -1,0 +1,16 @@
+name: Stage Merge Actions
+
+on:
+  push:
+    branches:
+      - 'stage'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  stage:
+    uses: ./.github/workflows/cd-template.yaml
+    with:
+      environment: stage

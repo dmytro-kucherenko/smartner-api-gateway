@@ -1,0 +1,77 @@
+name: CI Template
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+jobs:
+  linting:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Set up actions
+        uses: actions/checkout@v4
+
+      - name: Set up SDK
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache-dependency-path: 'go.sum'
+
+      - name: Download packages
+        run: go mod download
+
+      - name: Check types
+        run: make lint
+
+      - name: Check packages
+        run: go mod tidy && git diff --exit-code go.mod go.sum
+
+      - name: Build docs
+        run: make docs
+
+      - name: Build module
+        run: make build
+
+      # - name: Set up AWS credentials
+      #   uses: aws-actions/configure-aws-credentials@v1
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #     aws-region: ${{ vars.AWS_REGION }}
+
+      # - name: Check templates
+      #   run: make lint-deploy
+
+      # - name: Build DB stack
+      #   env:
+      #     AWS_REGION: ${{ vars.AWS_REGION }}
+      #     AWS_DB_STACK_NAME: ${{ vars.AWS_DB_STACK_NAME }}
+      #   run: |
+      #     sam build -t cfn/db.cfn.yaml
+      #     sam deploy \
+      #       --stack-name $AWS_DB_STACK_NAME \
+      #       --resolve-s3 \
+      #       --s3-prefix $AWS_DB_STACK_NAME \
+      #       --region $AWS_REGION \
+      #       --capabilities CAPABILITY_IAM \
+      #       --no-execute-changeset \
+      #       --no-fail-on-empty-changeset
+
+      # - name: Build service stack
+      #   env:
+      #     AWS_REGION: ${{ vars.AWS_REGION }}
+      #     AWS_SERVICE_STACK_NAME: ${{ vars.AWS_SERVICE_STACK_NAME }}
+      #   run: |
+      #     sam build -t cfn/service.cfn.yaml
+      #     sam deploy \
+      #       --stack-name $AWS_SERVICE_STACK_NAME \
+      #       --resolve-s3 \
+      #       --s3-prefix $AWS_SERVICE_STACK_NAME \
+      #       --region $AWS_REGION \
+      #       --capabilities CAPABILITY_IAM \
+      #       --no-execute-changeset \
+      #       --no-fail-on-empty-changeset
