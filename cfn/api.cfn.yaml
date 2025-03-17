@@ -1,0 +1,126 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  SwaggerVersion:
+    Type: String
+    Default: "1.0"
+
+  SwaggerTitle:
+    Type: String
+    Default: "Smartner API Specification"
+
+  GlobalApiVersion:
+    Type: String
+    Default: v1
+
+  GlobalApiTokenAuthorizationHeader:
+    Type: String
+    Default: Authorization
+
+  GlobalApiTokenAuthorizationSchema:
+    Type: String
+    Default: "^[A-Za-z0-9-_=]+$"
+
+  GlobalApiServicePassthroughBehavior:
+    Type: String
+    Default: when_no_match
+
+  GlobalApiServiceMethod:
+    Type: String
+    Default: POST
+
+  GlobalApiServiceType:
+    Type: String
+    Default: aws_proxy
+
+Resources:
+  GlobalApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: Global Api Gateway
+      StageName: !Ref GlobalApiVersion
+      Auth:
+        Authorizers:
+          TokenAuthorizer:
+            FunctionArn: !ImportValue AuthorizerFunctionArn
+            Identity:
+              Header: !Ref GlobalApiTokenAuthorizationHeader
+              ValidationExpression: !Ref GlobalApiTokenAuthorizationSchema
+      DefinitionBody:
+        openapi: 3.0.1
+        info:
+          version: !Ref SwaggerVersion
+          title: !Ref SwaggerTitle
+        schemes:
+          - "https"
+
+        components:
+          securitySchemes:
+            TokenAuthorizer:
+              type: apiKey
+              in: header
+              name: !Ref GlobalApiTokenAuthorizationHeader
+              x-amazon-apigateway-authorizer:
+                type: token
+                authorizerUri: !Sub
+                  - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AuthorizerFunctionArn}/invocations'
+                  - AuthorizerFunctionArn: !ImportValue AuthorizerFunctionArn
+                authorizerCredentials: !Sub
+                  - 'arn:aws:iam::${AWS::AccountId}:role/${AuthorizerRoleArn}'
+                  - AuthorizerRoleArn: !ImportValue AuthorizerRoleArn
+                authorizerResultTtlInSeconds: 300
+                identityValidationExpression: !Ref GlobalApiTokenAuthorizationSchema
+
+        paths:
+          /users/{proxy+}:
+            x-amazon-apigateway-any-method:
+              security:
+                - TokenAuthorizer: []
+              responses: {}
+              x-amazon-apigateway-integration:
+                uri: !Sub
+                  - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UsersServiceFunctionArn}/invocations'
+                  - UsersServiceFunctionArn: !ImportValue UsersServiceFunctionArn
+                passthroughBehavior: !Ref GlobalApiServicePassthroughBehavior
+                httpMethod: !Ref GlobalApiServiceMethod
+                type: !Ref GlobalApiServiceType
+
+          /users/swagger/{proxy+}:
+            x-amazon-apigateway-any-method:
+              security: []
+              responses: {}
+              x-amazon-apigateway-integration:
+                uri: !Sub
+                  - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UsersServiceFunctionArn}/invocations'
+                  - UsersServiceFunctionArn: !ImportValue UsersServiceFunctionArn
+                passthroughBehavior: !Ref GlobalApiServicePassthroughBehavior
+                httpMethod: !Ref GlobalApiServiceMethod
+                type: !Ref GlobalApiServiceType
+
+  UsersServiceFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !ImportValue UsersServiceFunctionArn
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GlobalApiGateway}/${GlobalApiVersion}/*/users/*"
+
+Outputs:
+  ApiGatewayID:
+    Description: "API ID"
+    Value: !Ref GlobalApiGateway
+    Export:
+      Name: ApiGatewayID
+
+  ApiHost:
+    Description: "API endpoint"
+    Value: !Sub "${GlobalApiGateway}.execute-api.${AWS::Region}.amazonaws.com"
+    Export:
+      Name: ApiHost
+
+  ApiVersion:
+    Description: "API version"
+    Value: !Ref GlobalApiVersion
+    Export:
+      Name: ApiVersion

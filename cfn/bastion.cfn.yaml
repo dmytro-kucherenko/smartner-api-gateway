@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  BastionPort:
+    Type: Number
+    MinValue: 1
+    MaxValue: 9999
+    Default: 22
+
+  BastionCidrIP:
+    Type: String
+    Default: 0.0.0.0/0
+
+  BastionInstanceType:
+    Type: String
+    Default: t3.nano
+
+  BastionKeyName:
+    Type: String
+    Default: db-bastion-key
+
+  BastionDomain:
+    Type: String
+    Default: vpc
+
+
+Resources:
+  BastionSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Allow SSH Access to Bastion Host"
+      VpcId: !ImportValue GlobalVPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref BastionPort
+          ToPort: !Ref BastionPort
+          CidrIp: !Ref BastionCidrIP
+
+  Bastion:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref BastionInstanceType
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}"
+      KeyName: !Ref BastionKeyName
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          AssociatePublicIpAddress: true
+          SubnetId: !ImportValue PublicSubnetID
+          GroupSet:
+          - !Ref BastionSecurityGroup
+
+  # BastionEIP:
+  #   Type: AWS::EC2::EIP
+  #   Properties:
+  #     Domain: !Ref BastionDomain
+
+  # BastionEIPAssociation:
+  #   Type: AWS::EC2::EIPAssociation
+  #   Properties:
+  #     InstanceId: !Ref Bastion
+  #     EIP: !Ref BastionEIP
+
+Outputs:
+  BastionSecurityGroupID:
+    Description: "Bastion Security Group ID"
+    Value: !Ref BastionSecurityGroup
+    Export:
+      Name: BastionSecurityGroupID

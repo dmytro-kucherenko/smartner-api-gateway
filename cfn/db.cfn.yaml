@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  DBPort:
+    Type: Number
+    MinValue: 1
+    MaxValue: 9999
+    Default: 5432
+
+  DBEngine:
+    Type: String
+    Default: aurora-postgresql
+
+  DBEngineVersion:
+    Type: String
+    Default: 16.6
+
+  DBScalingMin:
+    Type: Number
+    MinValue: 0
+    Default: 0
+
+  DBScalingMax:
+    Type: Number
+    MinValue: 1
+    Default: 8
+
+  DBScalingPauseSeconds:
+    Type: Number
+    MinValue: 1
+    Default: 300
+
+Resources:
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "Subnet group for DB"
+      SubnetIds:
+        - !ImportValue PrivateSubnetAID
+        - !ImportValue PrivateSubnetBID
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Allow DB subnet access"
+      VpcId: !ImportValue GlobalVPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref DBPort
+          ToPort: !Ref DBPort
+          CidrIp: !ImportValue PrivateSubnetACidrBlock
+        - IpProtocol: tcp
+          FromPort: !Ref DBPort
+          ToPort: !Ref DBPort
+          CidrIp: !ImportValue PrivateSubnetBCidrBlock
+        - IpProtocol: tcp
+          FromPort: !Ref DBPort
+          ToPort: !Ref DBPort
+          SourceSecurityGroupId: !ImportValue BastionSecurityGroupID
+
+  DBCluster:
+    Type: AWS::RDS::DBCluster
+    DeletionPolicy: Snapshot
+    Properties:
+      Engine: !Ref DBEngine
+      EngineVersion: !Ref DBEngineVersion
+      MasterUsername: "{{resolve:secretsmanager:/db:SecretString:username:AWSCURRENT}}"
+      MasterUserPassword: "{{resolve:secretsmanager:/db:SecretString:password:AWSCURRENT}}"
+      DatabaseName: "{{resolve:secretsmanager:/db:SecretString:name:AWSCURRENT}}"
+      Port: !Ref DBPort
+      ServerlessV2ScalingConfiguration:
+        MinCapacity: !Ref DBScalingMin
+        MaxCapacity: !Ref DBScalingMax
+        SecondsUntilAutoPause: !Ref DBScalingPauseSeconds
+      VpcSecurityGroupIds:
+        - !Ref DBSecurityGroup
+      DBSubnetGroupName: !Ref DBSubnetGroup
+
+Outputs:
+  DBClusterID:
+    Description: "DB Cluster ID"
+    Value: !Ref DBCluster
+    Export:
+      Name: DBClusterID
+
+  DBSecurityGroupID:
+    Description: "DB Security Group ID"
+    Value: !Ref DBSecurityGroup
+    Export:
+      Name: DBSecurityGroupID

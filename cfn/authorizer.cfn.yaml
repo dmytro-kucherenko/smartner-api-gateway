@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  FunctionName:
+    Type: String
+    Default: AuthFunction
+
+  FunctionCodeURI:
+    Type: String
+    Default: ../.
+
+  FunctionHandler:
+    Type: String
+    Default: bootstrap
+
+  FunctionRuntime:
+    Type: String
+    Default: provided.al2
+
+Resources:
+  AuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Ref FunctionName
+      CodeUri: !Ref FunctionCodeURI
+      Handler: !Ref FunctionHandler
+      Runtime: !Ref FunctionRuntime
+      Role: !GetAtt AuthorizerRole.Arn
+
+  AuthorizerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AuthFunctionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - apigateway.amazonaws.com
+            - lambda.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - lambda:InvokeFunction
+              Resource:
+              - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${FunctionName}"
+          PolicyName: LambdaExecutionPolicy
+
+Outputs:
+  AuthorizerFunctionArn:
+    Description: "ARN of the Authorizer Function"
+    Value: !GetAtt AuthorizerFunction.Arn
+    Export:
+      Name: AuthorizerFunctionArn
+
+  AuthorizerRoleArn:
+    Description: "ARN of the Authorizer Role"
+    Value: !GetAtt AuthorizerRole.Arn
+    Export:
+      Name: AuthorizerRoleArn
+
+  AuthorizerFunctionID:
+    Description: "ID of the Authorizer Function"
+    Value: !Ref AuthorizerFunction
+    Export:
+      Name: AuthorizerFunctionID
