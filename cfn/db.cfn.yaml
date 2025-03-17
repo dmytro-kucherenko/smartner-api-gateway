@@ -60,7 +60,6 @@ Resources:
 
   DBCluster:
     Type: AWS::RDS::DBCluster
-    DeletionPolicy: Snapshot
     Properties:
       Engine: !Ref DBEngine
       EngineVersion: !Ref DBEngineVersion

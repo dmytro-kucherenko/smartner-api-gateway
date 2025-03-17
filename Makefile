@@ -37,6 +37,10 @@ deploy-authorizer:
 	@sam build -t cfn/authorizer.cfn.yaml
 	@sam deploy --config-file authorizer.sam.toml --capabilities CAPABILITY_NAMED_IAM
 
+deploy-project:
+	@sam build -t cfn/project.cfn.yaml
+	@sam deploy --config-file project.sam.toml --capabilities CAPABILITY_NAMED_IAM
+
 build-AuthorizerFunction:
 	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin/bootstrap cmd/api/main.go
 	@cp ./bin/bootstrap $(ARTIFACTS_DIR)/.
