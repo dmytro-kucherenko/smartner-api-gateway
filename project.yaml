@@ -1,9 +1,10 @@
 version: 0.2
 
 phases:
-  build:
+  install:  # ✅ Move runtime-versions here
     runtime-versions:
       go: 1.x
+  build:
     commands:
       - echo "Test build"
       # - make migration-up
