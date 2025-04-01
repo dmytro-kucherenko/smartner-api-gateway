@@ -12,5 +12,6 @@ permissions:
 jobs:
   stage:
     uses: ./.github/workflows/cd-template.yaml
+    secrets: inherit
     with:
       environment: stage
