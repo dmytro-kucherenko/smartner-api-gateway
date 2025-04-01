@@ -8,11 +8,6 @@ clean:
 
 lint:
 	@go vet ./...
-	@sam validate -t cfn/api.cfn.yaml --lint
-	@sam validate -t cfn/db.cfn.yaml --lint
-	@sam validate -t cfn/bastion.cfn.yaml --lint
-	@sam validate -t cfn/authorizer.cfn.yaml --lint
-	@sam validate -t cfn/network.cfn.yaml --lint
 
 pre-commit:
 	@pre-commit autoupdate && pre-commit install
@@ -44,3 +39,11 @@ deploy-project:
 build-AuthorizerFunction:
 	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin/bootstrap cmd/api/main.go
 	@cp ./bin/bootstrap $(ARTIFACTS_DIR)/.
+
+lint-deploy:
+	@sam validate -t cfn/network.cfn.yaml --lint
+	@sam validate -t cfn/project.cfn.yaml --lint
+	@sam validate -t cfn/bastion.cfn.yaml --lint
+	@sam validate -t cfn/db.cfn.yaml --lint
+	@sam validate -t cfn/authorizer.cfn.yaml --lint
+	@sam validate -t cfn/api.cfn.yaml --lint

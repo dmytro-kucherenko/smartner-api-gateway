@@ -25,11 +25,6 @@ Parameters:
     MinValue: 1
     Default: 8
 
-  DBScalingPauseSeconds:
-    Type: Number
-    MinValue: 1
-    Default: 300
-
 Resources:
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
@@ -70,7 +65,6 @@ Resources:
       ServerlessV2ScalingConfiguration:
         MinCapacity: !Ref DBScalingMin
         MaxCapacity: !Ref DBScalingMax
-        SecondsUntilAutoPause: !Ref DBScalingPauseSeconds
       VpcSecurityGroupIds:
         - !Ref DBSecurityGroup
       DBSubnetGroupName: !Ref DBSubnetGroup
@@ -81,6 +75,18 @@ Outputs:
     Value: !Ref DBCluster
     Export:
       Name: DBClusterID
+
+  DBHost:
+    Description: "DB Endpoint"
+    Value: !GetAtt DBCluster.Endpoint.Address
+    Export:
+      Name: DBEndpoint
+
+  DBPort:
+    Description: "DB Port"
+    Value: !GetAtt DBCluster.Endpoint.Port
+    Export:
+      Name: DBPort
 
   DBSecurityGroupID:
     Description: "DB Security Group ID"

@@ -2,15 +2,32 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
 Parameters:
-  DBSchema:
+  ProjectIpProtocol:
     Type: String
-    Default: users
+    Default: '-1'
+
+  ProjectCidrIp:
+    Type: String
+    Default: 0.0.0.0/0
+
+  RoleName:
+    Type: String
+    Default: ProjectRole
 
 Resources:
-  DBBuildRole:
+  ProjectSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Allow Access to internet and DB"
+      VpcId: !ImportValue GlobalVPCID
+      SecurityGroupEgress:
+        - IpProtocol: !Ref ProjectIpProtocol
+          CidrIp: !Ref ProjectCidrIp
+
+  ProjectRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: DBBuildRole
+      RoleName: !Ref RoleName
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -32,60 +49,35 @@ Resources:
                   - ssm:GetParameter
                   - ssm:GetParameters
                 Resource: "*"
-
-  # BastionSecurityGroup:
-  #   Type: AWS::EC2::SecurityGroup
-  #   Properties:
-  #     GroupDescription: "Allow SSH Access to Bastion Host"
-  #     VpcId: !ImportValue GlobalVPCID
-  #     SecurityGroupIngress:
-  #       - IpProtocol: tcp
-  #         FromPort: !Ref DBPort
-  #         ToPort: !Ref DBPort
-  #         CidrIp: !ImportValue PrivateSubnetACidrBlock
-  #       - IpProtocol: tcp
-  #         FromPort: !Ref DBPort
-  #         ToPort: !Ref DBPort
-  #         CidrIp: !ImportValue PrivateSubnetBCidrBlock
-
-  DBBuildProject:
-    Type: AWS::CodeBuild::Project
-    Properties:
-      Name: UsersBuildProject
-      Source:
-        Type: GITHUB
-        Location: https://github.com/dmytro-kucherenko/smartner-api-gateway  # Param to reuse
-        BuildSpec: project.yaml   # Param to reuse
-      SourceVersion: initial-setup # Param to reuse
-      Environment:
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/go:1.17
-        Type: LINUX_CONTAINER
-        # EnvironmentVariables: # From env
-        #   - Name: DB_USERNAME
-        #     Value: !Sub "{{resolve:secretsmanager:/db:SecretString:username:AWSCURRENT}}"
-        #   - Name: DB_PASSWORD
-        #     Value: !Sub "{{resolve:secretsmanager:/db:SecretString:password:AWSCURRENT}}"
-        #   - Name: DB_HOST
-        #     Value: !GetAtt UsersDBInstance.Endpoint.Address
-        #   - Name: DB_PORT
-        #     Value: !GetAtt UsersDBInstance.Endpoint.Port
-        #   - Name: DB_NAME
-        #     Value: !Sub "{{resolve:secretsmanager:/db:SecretString:name:AWSCURRENT}}"
-        #   - Name: DB_SCHEMA
-        #     Value: !Ref DBSchema
-      ServiceRole: !Ref DBBuildRole
-      Artifacts:
-        Type: NO_ARTIFACTS
-      TimeoutInMinutes: 60
-      VpcConfig:
-        SubnetIds:
-          - !ImportValue PrivateSubnetAID
-          - !ImportValue PrivateSubnetBID
-        # SecurityGroupIds:
-        #   - !ImportValue DBSecurityGroupID
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeVpcs
+                  - ec2:DescribeDhcpOptions
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:CreateNetworkInterface
+                  - ec2:AttachNetworkInterface
+                  - ec2:CreateNetworkInterfacePermission
+                  - ec2:ModifyNetworkInterfaceAttribute
+                  - ec2:DeleteNetworkInterface
+                Resource: "*"
 
 Outputs:
-  DBBuildProjectName:
-    Description: "Name of DB Build Project"
-    Value: !Ref DBBuildProjectName
+  ProjectSecurityGroupID:
+    Description: "Project Security Group ID"
+    Value: !Ref ProjectSecurityGroup
+    Export:
+      Name: ProjectSecurityGroupID
+
+  ProjectRoleARN:
+    Description: "Project Role ARN"
+    Value: !GetAtt ProjectRole.Arn
+    Export:
+      Name: ProjectRoleARN

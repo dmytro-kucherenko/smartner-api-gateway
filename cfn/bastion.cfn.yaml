@@ -19,10 +19,9 @@ Parameters:
     Type: String
     Default: db-bastion-key
 
-  BastionDomain:
-    Type: String
-    Default: vpc
-
+  # BastionDomain:
+  #   Type: String
+  #   Default: vpc
 
 Resources:
   BastionSecurityGroup:
@@ -40,7 +39,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: !Ref BastionInstanceType
-      ImageId: !Sub "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}"
+      ImageId: "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}"
       KeyName: !Ref BastionKeyName
       NetworkInterfaces:
         - DeviceIndex: 0
@@ -49,6 +48,7 @@ Resources:
           GroupSet:
           - !Ref BastionSecurityGroup
 
+  # Enable to use same bastion IP
   # BastionEIP:
   #   Type: AWS::EC2::EIP
   #   Properties:
@@ -59,6 +59,7 @@ Resources:
   #   Properties:
   #     InstanceId: !Ref Bastion
   #     EIP: !Ref BastionEIP
+  #
 
 Outputs:
   BastionSecurityGroupID:
