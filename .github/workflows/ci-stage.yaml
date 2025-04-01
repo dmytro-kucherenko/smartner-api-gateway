@@ -15,9 +15,3 @@ jobs:
     secrets: inherit
     with:
       environment: stage
-
-  test:
-    uses: ./.github/workflows/cd-template.yaml
-    secrets: inherit
-    with:
-      environment: stage
