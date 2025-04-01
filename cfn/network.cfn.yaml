@@ -1,0 +1,168 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "VPC with one public and one private subnet"
+
+Parameters:
+  GlobalVPCCidrBlock:
+    Type: String
+    Default: 10.0.0.0/16
+
+  PublicSubnetCidrBlock:
+    Type: String
+    Default: 10.0.1.0/24
+
+  PublicRouteCidrBlock:
+    Type: String
+    Default: 0.0.0.0/0
+
+  PrivateSubnetACidrBlock:
+    Type: String
+    Default: 10.0.3.0/24
+
+  PrivateSubnetBCidrBlock:
+    Type: String
+    Default: 10.0.5.0/24
+
+  PrivateDomain:
+    Type: String
+    Default: vpc
+
+Resources:
+  GlobalVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref GlobalVPCCidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref GlobalVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref GlobalVPC
+      CidrBlock: !Ref PublicSubnetCidrBlock
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [0, !GetAZs '']
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref GlobalVPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachInternetGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: !Ref PublicRouteCidrBlock
+      GatewayId: !Ref InternetGateway
+
+  AssociatePublicSubnet:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref GlobalVPC
+      CidrBlock: !Ref PrivateSubnetACidrBlock
+      MapPublicIpOnLaunch: false
+      AvailabilityZone: !Select [0, !GetAZs '']
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref GlobalVPC
+      CidrBlock: !Ref PrivateSubnetBCidrBlock
+      MapPublicIpOnLaunch: false
+      AvailabilityZone: !Select [1, !GetAZs '']
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref GlobalVPC
+
+  # Enable to have access to the internet from private subnets
+  PrivateEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: !Ref PrivateDomain
+
+  PrivateNATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt PrivateEIP.AllocationId
+      SubnetId: !Ref PublicSubnet
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachInternetGateway
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: !Ref PublicRouteCidrBlock
+      NatGatewayId: !Ref PrivateNATGateway
+  #
+
+  AssociatePrivateSubnetA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+
+  AssociatePrivateSubnetB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTable
+
+Outputs:
+  GlobalVPCID:
+    Description: "VPC ID"
+    Value: !Ref GlobalVPC
+    Export:
+      Name: GlobalVPCID
+
+  PublicSubnetID:
+    Description: "Public Subnet ID"
+    Value: !Ref PublicSubnet
+    Export:
+      Name: PublicSubnetID
+
+  PrivateSubnetAID:
+    Description: "Private Subnet A ID"
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: PrivateSubnetAID
+
+  PrivateSubnetBID:
+    Description: "Private Subnet B ID"
+    Value: !Ref PrivateSubnetB
+    Export:
+      Name: PrivateSubnetBID
+
+  PrivateSubnetACidrBlock:
+    Description: "Private Subnet A CidrBlock"
+    Value: !GetAtt PrivateSubnetA.CidrBlock
+    Export:
+      Name: PrivateSubnetACidrBlock
+
+  PrivateSubnetBCidrBlock:
+    Description: "Private Subnet B CidrBlock"
+    Value: !GetAtt PrivateSubnetB.CidrBlock
+    Export:
+      Name: PrivateSubnetBCidrBlock
+
+  PrivateRouteTableID:
+    Description: "Private Route Table ID"
+    Value: !Ref PrivateRouteTable
+    Export:
+      Name: PrivateRouteTableID

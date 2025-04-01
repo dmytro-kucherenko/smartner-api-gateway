@@ -1,0 +1,116 @@
+name: CD Template
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Set up actions
+        uses: actions/checkout@v4
+
+      - name: Set up SDK
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache-dependency-path: 'go.sum'
+
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Download packages
+        run: go mod download
+
+      - name: Deploy network stack
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_NETWORK_STACK_NAME: ${{ vars.AWS_NETWORK_STACK_NAME }}
+        run: |
+          sam build -t cfn/network.cfn.yaml
+          sam deploy \
+            --stack-name $AWS_NETWORK_STACK_NAME \
+            --resolve-s3 \
+            --s3-prefix $AWS_NETWORK_STACK_NAME \
+            --region $AWS_REGION \
+            --capabilities CAPABILITY_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Deploy project stack
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_PROJECT_STACK_NAME: ${{ vars.AWS_PROJECT_STACK_NAME }}
+        run: |
+          sam build -t cfn/project.cfn.yaml
+          sam deploy \
+            --stack-name $AWS_PROJECT_STACK_NAME \
+            --resolve-s3 \
+            --s3-prefix $AWS_PROJECT_STACK_NAME \
+            --region $AWS_REGION \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Deploy bastion stack
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_BASTION_STACK_NAME: ${{ vars.AWS_BASTION_STACK_NAME }}
+        run: |
+          sam build -t cfn/bastion.cfn.yaml
+          sam deploy \
+            --stack-name $AWS_BASTION_STACK_NAME \
+            --resolve-s3 \
+            --s3-prefix $AWS_BASTION_STACK_NAME \
+            --region $AWS_REGION \
+            --capabilities CAPABILITY_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Deploy DB stack
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_DB_STACK_NAME: ${{ vars.AWS_DB_STACK_NAME }}
+        run: |
+          sam build -t cfn/db.cfn.yaml
+          sam deploy \
+            --stack-name $AWS_DB_STACK_NAME \
+            --resolve-s3 \
+            --s3-prefix $AWS_DB_STACK_NAME \
+            --region $AWS_REGION \
+            --capabilities CAPABILITY_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Deploy authorizer stack
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_AUTHORIZER_STACK_NAME: ${{ vars.AWS_AUTHORIZER_STACK_NAME }}
+        run: |
+          sam build -t cfn/authorizer.cfn.yaml
+          sam deploy \
+            --stack-name $AWS_AUTHORIZER_STACK_NAME \
+            --resolve-s3 \
+            --s3-prefix $AWS_AUTHORIZER_STACK_NAME \
+            --region $AWS_REGION \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Deploy API stack
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_API_STACK_NAME: ${{ vars.AWS_API_STACK_NAME }}
+        run: |
+          sam build -t cfn/api.cfn.yaml
+          sam deploy \
+            --stack-name $AWS_API_STACK_NAME \
+            --resolve-s3 \
+            --s3-prefix $AWS_API_STACK_NAME \
+            --region $AWS_REGION \
+            --capabilities CAPABILITY_IAM \
+            --no-fail-on-empty-changeset
