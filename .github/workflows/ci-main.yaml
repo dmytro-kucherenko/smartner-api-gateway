@@ -1,0 +1,17 @@
+name: Main Pull Request Actions
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  main:
+    uses: ./.github/workflows/ci-template.yaml
+    secrets: inherit
+    with:
+      environment: main

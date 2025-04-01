@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  ProjectIpProtocol:
+    Type: String
+    Default: '-1'
+
+  ProjectCidrIp:
+    Type: String
+    Default: 0.0.0.0/0
+
+  RoleName:
+    Type: String
+    Default: ProjectRole
+
+Resources:
+  ProjectSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Allow Access to internet and DB"
+      VpcId: !ImportValue GlobalVPCID
+      SecurityGroupEgress:
+        - IpProtocol: !Ref ProjectIpProtocol
+          CidrIp: !Ref ProjectCidrIp
+
+  ProjectRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeVpcs
+                  - ec2:DescribeDhcpOptions
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:CreateNetworkInterface
+                  - ec2:AttachNetworkInterface
+                  - ec2:CreateNetworkInterfacePermission
+                  - ec2:ModifyNetworkInterfaceAttribute
+                  - ec2:DeleteNetworkInterface
+                Resource: "*"
+
+Outputs:
+  ProjectSecurityGroupID:
+    Description: "Project Security Group ID"
+    Value: !Ref ProjectSecurityGroup
+    Export:
+      Name: ProjectSecurityGroupID
+
+  ProjectRoleARN:
+    Description: "Project Role ARN"
+    Value: !GetAtt ProjectRole.Arn
+    Export:
+      Name: ProjectRoleARN
