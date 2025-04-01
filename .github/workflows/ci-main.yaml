@@ -1,17 +1,17 @@
-name: Stage Pull Request Actions
+name: Main Pull Request Actions
 
 on:
   pull_request:
     branches:
-      - 'stage'
+      - 'main'
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  stage:
+  main:
     uses: ./.github/workflows/ci-template.yaml
     secrets: inherit
     with:
-      environment: stage
+      environment: main
