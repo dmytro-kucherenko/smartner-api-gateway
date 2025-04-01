@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  stage:
+  main:
     uses: ./.github/workflows/cd-template.yaml
     secrets: inherit
     with:
