@@ -1,0 +1,17 @@
+name: Main Merge Actions
+
+on:
+  push:
+    branches:
+      - 'main'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  stage:
+    uses: ./.github/workflows/cd-template.yaml
+    secrets: inherit
+    with:
+      environment: main
