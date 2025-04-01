@@ -56,7 +56,7 @@ jobs:
             --resolve-s3 \
             --s3-prefix $AWS_PROJECT_STACK_NAME \
             --region $AWS_REGION \
-            --capabilities CAPABILITY_IAM \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
             --no-fail-on-empty-changeset
 
       - name: Deploy bastion stack
