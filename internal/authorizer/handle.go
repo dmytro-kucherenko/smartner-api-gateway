@@ -2,47 +2,74 @@ package authorizer
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"slices"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/dmytro-kucherenko/smartner-utils-package/pkg/schema/modules/common"
 	"github.com/dmytro-kucherenko/smartner-utils-package/pkg/server"
-	"github.com/dmytro-kucherenko/smartner-utils-package/pkg/types"
 	"github.com/google/uuid"
 )
 
-func Handle(_ context.Context, event events.APIGatewayCustomAuthorizerRequest) (response events.APIGatewayCustomAuthorizerResponse, err error) {
-	// TODO: Handle auth, whitelisted routes, rate limiting
+const TokenKey string = "authorization"
 
-	var id types.ID
-	key := "451f4f07-5140-456f-9ffc-4751a808f45f"
-
-	id, err = uuid.Parse(key)
-	if err != nil {
-		return
-	}
-
-	ctx, err := common.EncodeStruct(server.Session{
-		UserID: id,
-	})
-
-	if err != nil {
-		return
-	}
-
-	response = events.APIGatewayCustomAuthorizerResponse{
-		PrincipalID: "user",
+func respond(principalID, methodArn, effect string, context map[string]any) (events.APIGatewayCustomAuthorizerResponse, error) {
+	return events.APIGatewayCustomAuthorizerResponse{
+		PrincipalID: principalID,
 		PolicyDocument: events.APIGatewayCustomAuthorizerPolicy{
 			Version: "2012-10-17",
 			Statement: []events.IAMPolicyStatement{
 				{
 					Action:   []string{"execute-api:Invoke"},
-					Effect:   "Allow",
-					Resource: []string{"*"},
+					Effect:   effect,
+					Resource: []string{methodArn},
 				},
 			},
 		},
-		Context: ctx,
+		Context: context,
+	}, nil
+}
+
+func deny(principalID, methodArn, message string) (events.APIGatewayCustomAuthorizerResponse, error) {
+	return respond(principalID, methodArn, "Deny", map[string]any{
+		"error": message,
+	})
+}
+
+func allow(principalID, methodArn string, session server.Session) (events.APIGatewayCustomAuthorizerResponse, error) {
+	context, err := common.EncodeStruct(session)
+	if err != nil {
+		return deny(principalID, methodArn, err.Error())
 	}
 
-	return
+	return respond(principalID, methodArn, "Allow", context)
+}
+
+func Handle(_ context.Context, event events.APIGatewayCustomAuthorizerRequest) (response events.APIGatewayCustomAuthorizerResponse, err error) {
+	cookies, err := http.ParseCookie(event.AuthorizationToken)
+	if err != nil {
+		return deny("user", event.MethodArn, "cookies are invalid")
+	}
+
+	i := slices.IndexFunc(cookies, func(cookie *http.Cookie) bool { return strings.EqualFold(cookie.Name, TokenKey) })
+	if i < 0 {
+		return deny("user", event.MethodArn, fmt.Sprintf("%v cookie is not found", TokenKey))
+	}
+
+	cookie := cookies[i]
+	token := cookie.Value
+
+	// TODO: Handle auth - get session in response where handle token value and expiry, rate limiting
+	id, err := uuid.Parse(token)
+	if err != nil {
+		return deny("user", event.MethodArn, fmt.Sprintf("%v cookie is invalid", TokenKey))
+	}
+
+	session := server.Session{
+		UserID: id,
+	}
+
+	return allow("user", event.MethodArn, session)
 }

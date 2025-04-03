@@ -45,8 +45,7 @@ Resources:
           TokenAuthorizer:
             FunctionArn: !ImportValue AuthorizerFunctionArn
             Identity:
-              Header: !Ref GlobalApiTokenAuthorizationHeader
-              ValidationExpression: !Ref GlobalApiTokenAuthorizationSchema
+              Header: Cookie
       DefinitionBody:
         openapi: 3.0.1
         info:
@@ -59,7 +58,7 @@ Resources:
           securitySchemes:
             TokenAuthorizer:
               type: apiKey
-              in: header
+              in: cookie
               name: !Ref GlobalApiTokenAuthorizationHeader
               x-amazon-apigateway-authorizer:
                 type: token
@@ -71,6 +70,30 @@ Resources:
                   - AuthorizerRoleArn: !ImportValue AuthorizerRoleArn
                 authorizerResultTtlInSeconds: 300
                 identityValidationExpression: !Ref GlobalApiTokenAuthorizationSchema
+
+        x-amazon-apigateway-gateway-responses:
+          ACCESS_DENIED:
+            statusCode: 401
+            responseParameters:
+              gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+              gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+            responseTemplates:
+              application/json: |
+                {
+                  "status": 401,
+                  "message": "$context.authorizer.error"
+                }
+          UNAUTHORIZED:
+            statusCode: 401
+            responseParameters:
+              gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+              gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+            responseTemplates:
+              application/json: |
+                {
+                  "status": 401,
+                  "message": "Cookie required"
+                }
 
         paths:
           /users/{proxy+}:
