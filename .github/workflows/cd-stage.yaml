@@ -1,4 +1,4 @@
-name: Stage Merge Actions
+name: CD Stage
 
 on:
   push:
