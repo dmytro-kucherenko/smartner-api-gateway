@@ -1,4 +1,4 @@
-name: Main Pull Request Actions
+name: CI Main
 
 on:
   pull_request:

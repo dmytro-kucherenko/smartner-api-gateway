@@ -26,14 +26,6 @@ Parameters:
     Type: String
     Default: when_no_match
 
-  GlobalApiServiceMethod:
-    Type: String
-    Default: POST
-
-  GlobalApiServiceType:
-    Type: String
-    Default: aws_proxy
-
 Resources:
   GlobalApiGateway:
     Type: AWS::Serverless::Api
@@ -45,21 +37,20 @@ Resources:
           TokenAuthorizer:
             FunctionArn: !ImportValue AuthorizerFunctionArn
             Identity:
-              Header: !Ref GlobalApiTokenAuthorizationHeader
-              ValidationExpression: !Ref GlobalApiTokenAuthorizationSchema
+              Header: Cookie
       DefinitionBody:
         openapi: 3.0.1
         info:
           version: !Ref SwaggerVersion
           title: !Ref SwaggerTitle
         schemes:
-          - "https"
+          - https
 
         components:
           securitySchemes:
             TokenAuthorizer:
               type: apiKey
-              in: header
+              in: cookie
               name: !Ref GlobalApiTokenAuthorizationHeader
               x-amazon-apigateway-authorizer:
                 type: token
@@ -72,39 +63,64 @@ Resources:
                 authorizerResultTtlInSeconds: 300
                 identityValidationExpression: !Ref GlobalApiTokenAuthorizationSchema
 
+        x-amazon-apigateway-gateway-responses:
+          ACCESS_DENIED:
+            statusCode: 401
+            responseParameters:
+              gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+              gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+            responseTemplates:
+              application/json: |
+                {
+                  "status": 401,
+                  "message": "$context.authorizer.error"
+                }
+          UNAUTHORIZED:
+            statusCode: 401
+            responseParameters:
+              gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+              gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+            responseTemplates:
+              application/json: |
+                {
+                  "status": 401,
+                  "message": "cookie required"
+                }
+
         paths:
-          /users/{proxy+}:
+          /user/{proxy+}:
             x-amazon-apigateway-any-method:
               security:
                 - TokenAuthorizer: []
-              responses: {}
               x-amazon-apigateway-integration:
+                type: http_proxy
+                connectionType: VPC_LINK
+                connectionId: !ImportValue LoadBalancerLinkID
+                httpMethod: ANY
                 uri: !Sub
-                  - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UsersServiceFunctionArn}/invocations'
-                  - UsersServiceFunctionArn: !ImportValue UsersServiceFunctionArn
+                  - http://${LoadBalancerDNS}:${UsersECSServicePort}/user/{proxy}
+                  - LoadBalancerDNS: !ImportValue LoadBalancerDNS
+                    UsersECSServicePort: !ImportValue UsersECSServicePort
+                requestParameters:
+                  integration.request.path.proxy: method.request.path.proxy
+                  integration.request.header.userId: context.authorizer.userId
                 passthroughBehavior: !Ref GlobalApiServicePassthroughBehavior
-                httpMethod: !Ref GlobalApiServiceMethod
-                type: !Ref GlobalApiServiceType
 
-          /users/swagger/{proxy+}:
+          /user/swagger/{proxy+}:
             x-amazon-apigateway-any-method:
               security: []
-              responses: {}
               x-amazon-apigateway-integration:
+                type: http_proxy
+                connectionType: VPC_LINK
+                connectionId: !ImportValue LoadBalancerLinkID
+                httpMethod: ANY
                 uri: !Sub
-                  - 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UsersServiceFunctionArn}/invocations'
-                  - UsersServiceFunctionArn: !ImportValue UsersServiceFunctionArn
+                  - http://${LoadBalancerDNS}:${UsersECSServicePort}/user/swagger/{proxy}
+                  - LoadBalancerDNS: !ImportValue LoadBalancerDNS
+                    UsersECSServicePort: !ImportValue UsersECSServicePort
+                requestParameters:
+                  integration.request.path.proxy: method.request.path.proxy
                 passthroughBehavior: !Ref GlobalApiServicePassthroughBehavior
-                httpMethod: !Ref GlobalApiServiceMethod
-                type: !Ref GlobalApiServiceType
-
-  UsersServiceFunctionPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !ImportValue UsersServiceFunctionArn
-      Principal: apigateway.amazonaws.com
-      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${GlobalApiGateway}/${GlobalApiVersion}/*/users/*"
 
 Outputs:
   ApiGatewayID:

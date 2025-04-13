@@ -125,6 +125,12 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable
 
 Outputs:
+  GlobalVPCCidr:
+    Description: "VPC Cidr"
+    Value: !Ref GlobalVPCCidrBlock
+    Export:
+      Name: GlobalVPCCidr
+
   GlobalVPCID:
     Description: "VPC ID"
     Value: !Ref GlobalVPC

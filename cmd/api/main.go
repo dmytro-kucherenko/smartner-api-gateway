@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/Dmytro-Kucherenko/smartner-api-gateway/internal"
+	"github.com/dmytro-kucherenko/smartner-api-gateway/internal"
 )
 
 func main() {
