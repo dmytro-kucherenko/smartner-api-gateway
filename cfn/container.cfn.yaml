@@ -14,8 +14,12 @@ Parameters:
     Type: Number
     Default: 8999
 
+  AppEnv:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /app/env
+
 Conditions:
-  IsStage: !Not [!Equals ["{{resolve:ssm:/app/env}}", prod]]
+  IsStage: !Not [!Equals [!Ref AppEnv, prod]]
 
 Resources:
   TaskExecutionRole:
