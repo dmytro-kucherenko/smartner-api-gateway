@@ -1,0 +1,193 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  ECSLogGroupDays:
+    Type: Number
+    Default: 30
+
+  ContainerFromPort:
+    Type: Number
+    Default: 8000
+
+  ContainerToPort:
+    Type: Number
+    Default: 8999
+
+Conditions:
+  IsStage: !Not [!Equals ["{{resolve:ssm:/app/env}}", prod]]
+
+Resources:
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  AutoScalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: application-autoscaling.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole
+
+  ServiceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group of the load balancer services
+      VpcId: !ImportValue GlobalVPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref ContainerFromPort
+          ToPort: !Ref ContainerToPort
+          CidrIp: !ImportValue PrivateSubnetACidrBlock
+          Description: Allow private VPC traffic
+        - IpProtocol: tcp
+          FromPort: !Ref ContainerFromPort
+          ToPort: !Ref ContainerToPort
+          CidrIp: !ImportValue PrivateSubnetBCidrBlock
+          Description: Allow private VPC traffic
+        - IpProtocol: tcp
+          FromPort: !Ref ContainerFromPort
+          ToPort: !Ref ContainerToPort
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          Description: Allow load balancer traffic
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Allow all traffic
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group of the load balancer
+      VpcId: !ImportValue GlobalVPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref ContainerFromPort
+          ToPort: !Ref ContainerToPort
+          CidrIp: !ImportValue GlobalVPCCidr
+          Description: Allow VPC traffic
+        - !If
+          - IsStage
+          - IpProtocol: tcp
+            FromPort: !Ref ContainerFromPort
+            ToPort: !Ref ContainerToPort
+            CidrIp: 0.0.0.0/0
+            Description: Allow all traffic in stage
+          - !Ref AWS::NoValue
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Allow all traffic
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: network
+      Scheme: internet-facing
+      Subnets:
+        - !ImportValue PublicSubnetID
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      LoadBalancerAttributes:
+        - Key: load_balancing.cross_zone.enabled
+          Value: 'true'
+
+  LoadBalancerLink:
+    Type: AWS::ApiGateway::VpcLink
+    Properties:
+      Name: NetworkLoadBalancerVPCLink
+      TargetArns:
+        - !Ref LoadBalancer
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: ECSCluster
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+      DefaultCapacityProviderStrategy:
+        - CapacityProvider: FARGATE
+          Weight: 1
+
+  ECSLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: ECSLogGroup
+      RetentionInDays: !Ref ECSLogGroupDays
+
+Outputs:
+  TaskExecutionRoleID:
+    Description: Task Execution Role ID
+    Value: !Ref TaskExecutionRole
+    Export:
+      Name: TaskExecutionRoleID
+
+  TaskExecutionRoleARN:
+    Description: Task Execution Role ARN
+    Value: !GetAtt TaskExecutionRole.Arn
+    Export:
+      Name: TaskExecutionRoleARN
+
+  AutoScalingRoleID:
+    Description: Auto Scaling Role ID
+    Value: !Ref AutoScalingRole
+    Export:
+      Name: AutoScalingRoleID
+
+  AutoScalingRoleARN:
+    Description: Auto Scaling Role ARN
+    Value: !GetAtt AutoScalingRole.Arn
+    Export:
+      Name: AutoScalingRoleARN
+
+  ServiceSecurityGroupID:
+    Description: Service Security Group ID
+    Value: !Ref ServiceSecurityGroup
+    Export:
+      Name: ServiceSecurityGroupID
+
+  ECSClusterID:
+    Description: ECS Cluster ID
+    Value: !Ref ECSCluster
+    Export:
+      Name: ECSClusterID
+
+  ECSLogGroupID:
+    Description: ECS Log Group ID
+    Value: !Ref ECSLogGroup
+    Export:
+      Name: ECSLogGroupID
+
+  LoadBalancerID:
+    Description: ID of the Load Balancer
+    Value: !Ref  LoadBalancer
+    Export:
+      Name: LoadBalancerID
+
+  LoadBalancerDNS:
+    Description: DNS name of the Network Load Balancer
+    Value: !GetAtt LoadBalancer.DNSName
+    Export:
+      Name: LoadBalancerDNS
+
+  LoadBalancerLinkID:
+    Description: API Gateway Link ID of the Network Load Balancer
+    Value: !Ref LoadBalancerLink
+    Export:
+      Name: LoadBalancerLinkID

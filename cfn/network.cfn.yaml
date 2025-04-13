@@ -92,24 +92,24 @@ Resources:
       VpcId: !Ref GlobalVPC
 
   # Enable to have access to the internet from private subnets
-  PrivateEIP:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: !Ref PrivateDomain
+  # PrivateEIP:
+  #   Type: AWS::EC2::EIP
+  #   Properties:
+  #     Domain: !Ref PrivateDomain
 
-  PrivateNATGateway:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt PrivateEIP.AllocationId
-      SubnetId: !Ref PublicSubnet
+  # PrivateNATGateway:
+  #   Type: AWS::EC2::NatGateway
+  #   Properties:
+  #     AllocationId: !GetAtt PrivateEIP.AllocationId
+  #     SubnetId: !Ref PublicSubnet
 
-  PrivateRoute:
-    Type: AWS::EC2::Route
-    DependsOn: AttachInternetGateway
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable
-      DestinationCidrBlock: !Ref PublicRouteCidrBlock
-      NatGatewayId: !Ref PrivateNATGateway
+  # PrivateRoute:
+  #   Type: AWS::EC2::Route
+  #   DependsOn: AttachInternetGateway
+  #   Properties:
+  #     RouteTableId: !Ref PrivateRouteTable
+  #     DestinationCidrBlock: !Ref PublicRouteCidrBlock
+  #     NatGatewayId: !Ref PrivateNATGateway
   #
 
   AssociatePrivateSubnetA:
@@ -125,6 +125,12 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable
 
 Outputs:
+  GlobalVPCCidr:
+    Description: "VPC Cidr"
+    Value: !Ref GlobalVPCCidrBlock
+    Export:
+      Name: GlobalVPCCidr
+
   GlobalVPCID:
     Description: "VPC ID"
     Value: !Ref GlobalVPC

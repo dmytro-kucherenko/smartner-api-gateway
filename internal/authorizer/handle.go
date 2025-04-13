@@ -8,12 +8,11 @@ import (
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/dmytro-kucherenko/smartner-utils-package/pkg/schema/modules/common"
-	"github.com/dmytro-kucherenko/smartner-utils-package/pkg/server"
+	"github.com/dmytro-kucherenko/smartner-utils-package/pkg/meta"
 	"github.com/google/uuid"
 )
 
-const TokenKey string = "authorization"
+const TokenKey string = "authorization" // Get from template env
 
 func respond(principalID, methodArn, effect string, context map[string]any) (events.APIGatewayCustomAuthorizerResponse, error) {
 	return events.APIGatewayCustomAuthorizerResponse{
@@ -38,13 +37,10 @@ func deny(principalID, methodArn, message string) (events.APIGatewayCustomAuthor
 	})
 }
 
-func allow(principalID, methodArn string, session server.Session) (events.APIGatewayCustomAuthorizerResponse, error) {
-	context, err := common.EncodeStruct(session)
-	if err != nil {
-		return deny(principalID, methodArn, err.Error())
-	}
+func allow(principalID, methodArn string, session meta.Session) (events.APIGatewayCustomAuthorizerResponse, error) {
+	data := meta.SetSessionHeader(session)
 
-	return respond(principalID, methodArn, "Allow", context)
+	return respond(principalID, methodArn, "Allow", data)
 }
 
 func Handle(_ context.Context, event events.APIGatewayCustomAuthorizerRequest) (response events.APIGatewayCustomAuthorizerResponse, err error) {
@@ -67,7 +63,7 @@ func Handle(_ context.Context, event events.APIGatewayCustomAuthorizerRequest) (
 		return deny("user", event.MethodArn, fmt.Sprintf("%v cookie is invalid", TokenKey))
 	}
 
-	session := server.Session{
+	session := meta.Session{
 		UserID: id,
 	}
 
