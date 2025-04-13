@@ -1,10 +1,12 @@
-module github.com/Dmytro-Kucherenko/smartner-api-gateway
+module github.com/dmytro-kucherenko/smartner-api-gateway
 
-go 1.23.2
+go 1.23.4
+
+toolchain go1.24.1
 
 require github.com/aws/aws-lambda-go v1.47.0
 
-require github.com/dmytro-kucherenko/smartner-utils-package v0.1.17
+require github.com/dmytro-kucherenko/smartner-utils-package v1.0.1
 
 require (
 	github.com/gabriel-vasile/mimetype v1.4.6 // indirect
@@ -13,10 +15,11 @@ require (
 	github.com/go-playground/validator/v10 v10.22.1 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	golang.org/x/crypto v0.28.0 // indirect
-	golang.org/x/net v0.30.0 // indirect
-	golang.org/x/sys v0.26.0 // indirect
-	golang.org/x/text v0.19.0 // indirect
+	golang.org/x/crypto v0.32.0 // indirect
+	golang.org/x/net v0.34.0 // indirect
+	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
+	google.golang.org/grpc v1.71.1 // indirect
 )
 
 require (

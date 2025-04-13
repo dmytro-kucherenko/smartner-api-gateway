@@ -103,6 +103,21 @@ jobs:
             --no-execute-changeset \
             --no-fail-on-empty-changeset
 
+      - name: Build container stack
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_CONTAINER_STACK_NAME: ${{ vars.AWS_CONTAINER_STACK_NAME }}
+        run: |
+          sam build -t cfn/container.cfn.yaml
+          sam deploy \
+            --stack-name $AWS_CONTAINER_STACK_NAME \
+            --resolve-s3 \
+            --s3-prefix $AWS_CONTAINER_STACK_NAME \
+            --region $AWS_REGION \
+            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+            --no-execute-changeset \
+            --no-fail-on-empty-changeset
+
       - name: Build authorizer stack
         env:
           AWS_REGION: ${{ vars.AWS_REGION }}

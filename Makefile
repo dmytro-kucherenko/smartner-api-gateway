@@ -30,11 +30,15 @@ deploy-bastion:
 
 deploy-authorizer:
 	@sam build -t cfn/authorizer.cfn.yaml
-	@sam deploy --config-file authorizer.sam.toml --capabilities CAPABILITY_NAMED_IAM
+	@sam deploy --config-file authorizer.sam.toml
 
 deploy-project:
 	@sam build -t cfn/project.cfn.yaml
-	@sam deploy --config-file project.sam.toml --capabilities CAPABILITY_NAMED_IAM
+	@sam deploy --config-file project.sam.toml
+
+deploy-container:
+	@sam build -t cfn/container.cfn.yaml
+	@sam deploy --config-file container.sam.toml
 
 build-AuthorizerFunction:
 	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin/bootstrap cmd/api/main.go
@@ -45,5 +49,6 @@ lint-deploy:
 	@sam validate -t cfn/project.cfn.yaml --lint
 	@sam validate -t cfn/bastion.cfn.yaml --lint
 	@sam validate -t cfn/db.cfn.yaml --lint
+	@sam validate -t cfn/container.cfn.yaml --lint
 	@sam validate -t cfn/authorizer.cfn.yaml --lint
 	@sam validate -t cfn/api.cfn.yaml --lint
